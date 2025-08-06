@@ -39,7 +39,7 @@ from ..limits.path_conditions import BoundsList, Bounds
 from ..limits.path_conditions import InitialGuess, InitialGuessList
 from ..limits.penalty import PenaltyOption
 from ..limits.penalty_helpers import PenaltyHelpers
-from ..limits.phase_transition import PhaseTransitionList, PhaseTransitionFcn
+from ..limits.phase_transition import PhaseTransition, PhaseTransitionList, PhaseTransitionFcn
 from ..limits.phase_transtion_factory import PhaseTransitionFactory
 from ..misc.__version__ import __version__
 from ..misc.enums import (
@@ -62,6 +62,21 @@ from ..optimization.parameters import ParameterList, Parameter, ParameterContain
 from ..optimization.solution.solution import Solution
 from ..optimization.solution.solution_data import SolutionMerge
 from ..optimization.variable_scaling import VariableScalingList, VariableScaling
+
+from ..misc.parameters_types import (
+    Int,
+    IntOptional,
+    Float,
+    Bool,
+    Str,
+    List,
+    Tuple,
+    NpArray,
+    AnyDict,
+    AnyTuple,
+    DoubleNpArrayTuple,
+    CX,
+)
 
 
 class OptimalControlProgram:
@@ -138,37 +153,37 @@ class OptimalControlProgram:
 
     def __init__(
         self,
-        bio_model: list | tuple | BioModel,
+        bio_model: List | Tuple | BioModel,
         dynamics: Dynamics | DynamicsList,
-        n_shooting: int | list | tuple,
-        phase_time: int | float | list | tuple,
-        x_bounds: BoundsList = None,
-        u_bounds: BoundsList = None,
-        a_bounds: BoundsList = None,
+        n_shooting: Int | List | Tuple,
+        phase_time: Int | Float | List | Tuple,
+        x_bounds: BoundsList | None = None,
+        u_bounds: BoundsList | None = None,
+        a_bounds: BoundsList | None = None,
         x_init: InitialGuessList | None = None,
         u_init: InitialGuessList | None = None,
         a_init: InitialGuessList | None = None,
-        objective_functions: Objective | ObjectiveList = None,
-        constraints: Constraint | ConstraintList = None,
-        parameters: ParameterList = None,
-        parameter_bounds: BoundsList = None,
-        parameter_init: InitialGuessList = None,
-        parameter_objectives: ParameterObjectiveList = None,
-        parameter_constraints: ParameterConstraintList = None,
-        control_type: ControlType | list = ControlType.CONSTANT,
-        variable_mappings: BiMappingList = None,
-        time_phase_mapping: BiMapping = None,
-        plot_mappings: Mapping = None,
-        phase_transitions: PhaseTransitionList = None,
-        multinode_constraints: MultinodeConstraintList = None,
-        multinode_objectives: MultinodeObjectiveList = None,
-        x_scaling: VariableScalingList = None,
-        u_scaling: VariableScalingList = None,
-        a_scaling: VariableScalingList = None,
-        n_threads: int = 1,
-        use_sx: bool = False,
-        integrated_value_functions: dict[str, Callable] = None,
-    ):
+        objective_functions: Objective | ObjectiveList | None = None,
+        constraints: Constraint | ConstraintList | None = None,
+        parameters: ParameterList | None = None,
+        parameter_bounds: BoundsList | None = None,
+        parameter_init: InitialGuessList | None = None,
+        parameter_objectives: ParameterObjectiveList | None = None,
+        parameter_constraints: ParameterConstraintList | None = None,
+        control_type: ControlType | List = ControlType.CONSTANT,
+        variable_mappings: BiMappingList | None = None,
+        time_phase_mapping: BiMapping | None = None,
+        plot_mappings: Mapping | None = None,
+        phase_transitions: PhaseTransitionList | None = None,
+        multinode_constraints: MultinodeConstraintList | None = None,
+        multinode_objectives: MultinodeObjectiveList | None = None,
+        x_scaling: VariableScalingList | None = None,
+        u_scaling: VariableScalingList | None = None,
+        a_scaling: VariableScalingList | None = None,
+        n_threads: Int = 1,
+        use_sx: Bool = False,
+        integrated_value_functions: dict[Str, Callable] | None = None,
+    ) -> None:
         """
         Parameters
         ----------
@@ -313,11 +328,11 @@ class OptimalControlProgram:
             phase_transitions,
         )
 
-    def _check_bioptim_version(self):
+    def _check_bioptim_version(self) -> None:
         self.version = {"casadi": casadi.__version__, "biorbd": biorbd.__version__, "bioptim": __version__}
         return
 
-    def _initialize_model(self, bio_model):
+    def _initialize_model(self, bio_model: List | Tuple | BioModel) -> List[BioModel]:
         """
         Initialize the bioptim model and check if the quaternions are used, if yes then setting them.
         Setting the number of phases.
@@ -328,12 +343,12 @@ class OptimalControlProgram:
         self.n_phases = len(bio_model)
         return bio_model
 
-    def _check_and_set_threads(self, n_threads):
+    def _check_and_set_threads(self, n_threads: Int) -> None:
         if not isinstance(n_threads, int) or isinstance(n_threads, bool) or n_threads < 1:
             raise RuntimeError("n_threads should be a positive integer greater or equal than 1")
         self.n_threads = n_threads
 
-    def _check_and_set_shooting_points(self, n_shooting):
+    def _check_and_set_shooting_points(self, n_shooting: Int | List | Tuple) -> None:
         if not isinstance(n_shooting, int) or n_shooting < 2:
             if isinstance(n_shooting, (tuple, list)):
                 if sum([True for i in n_shooting if not isinstance(i, int) and not isinstance(i, bool)]) != 0:
@@ -342,7 +357,7 @@ class OptimalControlProgram:
                 raise RuntimeError("n_shooting should be a positive integer (or a list of) greater or equal than 2")
         self.n_shooting = n_shooting
 
-    def _check_and_set_phase_time(self, phase_time):
+    def _check_and_set_phase_time(self, phase_time: Int | Float | List | Tuple) -> None:
         if not isinstance(phase_time, (int, float)):
             if isinstance(phase_time, (tuple, list)):
                 if sum([True for i in phase_time if not isinstance(i, (int, float))]) != 0:
@@ -353,11 +368,11 @@ class OptimalControlProgram:
 
     def _check_and_prepare_decision_variables(
         self,
-        var_name: str,
+        var_name: Str,
         bounds: BoundsList,
         init: InitialGuessList,
         scaling: VariableScalingList,
-    ):
+    ) -> AnyTuple:
         """
         This function checks if the decision variables are of the right type for initial guess and bounds.
         It also prepares the scaling for the decision variables.
@@ -391,7 +406,7 @@ class OptimalControlProgram:
         a_bounds,
         a_init,
         a_scaling,
-    ):
+    ) -> AnyTuple:
         """
         This function checks if the decision variables are of the right type for initial guess and bounds.
         It also prepares the scaling for the decision variables.
@@ -408,25 +423,25 @@ class OptimalControlProgram:
 
     def _check_arguments_and_build_nlp(
         self,
-        dynamics,
-        objective_functions,
-        constraints,
-        parameters,
-        phase_transitions,
-        multinode_constraints,
-        multinode_objectives,
-        parameter_bounds,
-        parameter_init,
-        parameter_constraints,
-        parameter_objectives,
-        use_sx,
-        bio_model,
-        plot_mappings,
-        time_phase_mapping,
-        control_type,
-        variable_mappings,
-        integrated_value_functions,
-    ):
+        dynamics: Dynamics | DynamicsList,
+        objective_functions: Objective | ObjectiveList | None,
+        constraints: Constraint | ConstraintList | None,
+        parameters: ParameterList | None,
+        phase_transitions: PhaseTransitionList | None,
+        multinode_constraints: MultinodeConstraintList | None,
+        multinode_objectives: MultinodeObjectiveList | None,
+        parameter_bounds: BoundsList | None,
+        parameter_init: InitialGuessList | None,
+        parameter_constraints: ParameterConstraintList | None,
+        parameter_objectives: ParameterObjectiveList | None,
+        use_sx: Bool,
+        bio_model: List[BioModel],
+        plot_mappings: Mapping | None,
+        time_phase_mapping: BiMapping | None,
+        control_type: ControlType | List,
+        variable_mappings: BiMappingList,
+        integrated_value_functions: dict[Str, Callable] | None,
+    ) -> AnyTuple:
         if objective_functions is None:
             objective_functions = ObjectiveList()
         elif isinstance(objective_functions, Objective):
@@ -587,7 +602,7 @@ class OptimalControlProgram:
             parameter_init,
         )
 
-    def _prepare_dynamics(self):
+    def _prepare_dynamics(self) -> None:
         # Prepare the dynamics
         for i in range(self.n_phases):
             self.nlp[i].initialize(self.cx)
@@ -603,7 +618,7 @@ class OptimalControlProgram:
 
     def _prepare_bounds_and_init(
         self, x_bounds, u_bounds, parameter_bounds, a_bounds, x_init, u_init, parameter_init, a_init
-    ):
+    ) -> None:
         self.parameter_bounds = BoundsList()
         self.parameter_init = InitialGuessList()
 
@@ -618,7 +633,7 @@ class OptimalControlProgram:
         multinode_objectives: ObjectiveList,
         constraints: ConstraintList,
         phase_transition: PhaseTransitionList,
-    ):
+    ) -> None:
         """
         This function declares the multi node penalties (constraints and objectives) to the penalty pool.
 
@@ -636,7 +651,7 @@ class OptimalControlProgram:
         objective_functions,
         parameter_objectives,
         phase_transitions,
-    ):
+    ) -> None:
         # Define continuity constraints
         # Prepare phase transitions (Reminder, it is important that parameters are declared before,
         # otherwise they will erase the phase_transitions)
@@ -654,7 +669,7 @@ class OptimalControlProgram:
         self.update_parameter_objectives(parameter_objectives)
         return
 
-    def finalize_plot_phase_mappings(self):
+    def finalize_plot_phase_mappings(self) -> None:
         """
         Finalize the plot phase mappings (if not already done)
 
@@ -722,19 +737,19 @@ class OptimalControlProgram:
                     nlp.plot[key].phase_mappings = BiMapping(to_first=range(size), to_second=range(size))
 
     @property
-    def variables_vector(self):
+    def variables_vector(self) -> CX:
         return OptimizationVectorHelper.vector(self)
 
     @property
-    def bounds_vectors(self):
+    def bounds_vectors(self) -> DoubleNpArrayTuple:
         return OptimizationVectorHelper.bounds_vectors(self)
 
     @property
-    def init_vector(self):
+    def init_vector(self) -> NpArray:
         return OptimizationVectorHelper.init_vector(self)
 
     @classmethod
-    def from_loaded_data(cls, data):
+    def from_loaded_data(cls, data: AnyDict) -> "OptimalControlProgram":
         """
         Loads an OCP from a dictionary ("ocp_initializer")
 
@@ -754,7 +769,7 @@ class OptimalControlProgram:
 
         return cls(**data)
 
-    def _set_kinematic_phase_mapping(self):
+    def _set_kinematic_phase_mapping(self) -> AnyTuple:
         """
         To add phase_mapping for different kinematic number of states in the ocp. It maps the degrees of freedom
         across phases, so they appear on the same graph.
@@ -777,7 +792,7 @@ class OptimalControlProgram:
         return phase_mappings, dof_names
 
     @staticmethod
-    def _check_quaternions_hasattr(biomodels: list[BioModel]) -> list[BioModel]:
+    def _check_quaternions_hasattr(biomodels: List[BioModel]) -> List[BioModel]:
         """
         This functions checks if the biomodels have quaternions and if not we set an attribute to nb_quaternion to 0
 
@@ -800,7 +815,9 @@ class OptimalControlProgram:
 
         return biomodels
 
-    def _prepare_option_dict_for_phase(self, name: str, option_dict: OptionDict, option_dict_type: type) -> Any:
+    def _prepare_option_dict_for_phase(
+        self, name: Str, option_dict: OptionDict, option_dict_type: type
+    ) -> Any:
         if option_dict is None:
             option_dict = option_dict_type()
 
@@ -861,7 +878,7 @@ class OptimalControlProgram:
             )
             penalty.add_or_replace_to_penalty_pool(self, nlp)
 
-    def _declare_phase_transition_continuity(self, pt):
+    def _declare_phase_transition_continuity(self, pt: PhaseTransition) -> None:
         """Declare the continuity function for the variables between phases, mainly for the state variables"""
         # Phase transition as constraints
         if pt.type == PhaseTransitionFcn.DISCONTINUOUS:
@@ -871,7 +888,7 @@ class OptimalControlProgram:
         pt.list_index = -1
         pt.add_or_replace_to_penalty_pool(self, self.nlp[pt.nodes_phase[0]])
 
-    def update_objectives(self, new_objective_function: Objective | ObjectiveList):
+    def update_objectives(self, new_objective_function: Objective | ObjectiveList) -> None:
         """
         The main user interface to add or modify objective functions in the ocp
 
@@ -892,7 +909,7 @@ class OptimalControlProgram:
         else:
             raise RuntimeError("new_objective_function must be a Objective or an ObjectiveList")
 
-    def update_parameter_objectives(self, new_objective_function: ParameterObjective | ParameterObjectiveList):
+    def update_parameter_objectives(self, new_objective_function: ParameterObjective | ParameterObjectiveList) -> None:
         """
         The main user interface to add or modify a parameter objective functions in the ocp
 
@@ -913,7 +930,9 @@ class OptimalControlProgram:
         else:
             raise RuntimeError("new_objective_function must be a ParameterObjective or an ParameterObjectiveList")
 
-    def update_objectives_target(self, target, phase=None, list_index=None):
+    def update_objectives_target(
+        self, target: NpArray, phase: IntOptional = None, list_index: IntOptional = None
+    ) -> None:
         """
         Fast accessor to update the target of a specific objective function. To update target of global objective
         (usually defined by parameters), one can pass 'phase=-1'
@@ -937,7 +956,7 @@ class OptimalControlProgram:
 
         ObjectiveFunction.update_target(self.nlp[phase] if phase >= 0 else self, list_index, target)
 
-    def update_constraints(self, new_constraints: Constraint | ConstraintList):
+    def update_constraints(self, new_constraints: Constraint | ConstraintList) -> None:
         """
         The main user interface to add or modify constraint in the ocp
 
@@ -957,7 +976,9 @@ class OptimalControlProgram:
         else:
             raise RuntimeError("new_constraint must be a Constraint or a ConstraintList")
 
-    def update_parameter_constraints(self, new_constraint: ParameterConstraint | ParameterConstraintList):
+    def update_parameter_constraints(
+        self, new_constraint: ParameterConstraint | ParameterConstraintList
+    ) -> None:
         """
         The main user interface to add or modify a parameter constraint in the ocp
 
@@ -977,7 +998,7 @@ class OptimalControlProgram:
         else:
             raise RuntimeError("new_constraint must be a ParameterConstraint or a ParameterConstraintList")
 
-    def _declare_parameters(self, parameters: ParameterList):
+    def _declare_parameters(self, parameters: ParameterList) -> None:
         """
         The main user interface to add or modify parameters in the ocp
 
@@ -999,7 +1020,7 @@ class OptimalControlProgram:
         u_bounds: BoundsList = None,
         parameter_bounds: BoundsList = None,
         a_bounds: BoundsList = None,
-    ):
+    ) -> None:
         """
         The main user interface to add bounds in the ocp to nlps.
 
@@ -1062,7 +1083,7 @@ class OptimalControlProgram:
         u_init: InitialGuessList = None,
         parameter_init: InitialGuessList = None,
         a_init: InitialGuessList = None,
-    ):
+    ) -> None:
         """
         The main user interface to add initial guesses in the ocp
 
@@ -1116,7 +1137,7 @@ class OptimalControlProgram:
             for key in parameter_init.keys():
                 self.parameter_init.add(key, parameter_init[key], phase=0)
 
-    def add_plot(self, fig_name: str, update_function: Callable, phase: int = -1, **parameters: Any):
+    def add_plot(self, fig_name: Str, update_function: Callable, phase: Int = -1, **parameters: Any) -> None:
         """
         The main user interface to add a new plot to the ocp
 
@@ -1163,7 +1184,7 @@ class OptimalControlProgram:
 
         nlp.plot[plot_name] = custom_plot
 
-    def add_plot_penalty(self, cost_type: CostType = None):
+    def add_plot_penalty(self, cost_type: CostType | None = None) -> None:
         """
         To add penlaty (objectivs and constraints) plots
 
@@ -1288,13 +1309,13 @@ class OptimalControlProgram:
             add_penalty(penalties_implicit)
         return
 
-    def add_plot_ipopt_outputs(self):
+    def add_plot_ipopt_outputs(self) -> None:
         self.plot_ipopt_outputs = True
 
-    def add_plot_check_conditioning(self):
+    def add_plot_check_conditioning(self) -> None:
         self.plot_check_conditioning = True
 
-    def save_intermediary_ipopt_iterations(self, path_to_results, result_file_name, nb_iter_save):
+    def save_intermediary_ipopt_iterations(self, path_to_results: Str, result_file_name: Str, nb_iter_save: Int) -> None:
         self.save_ipopt_iterations_info = SaveIterationsInfo(path_to_results, result_file_name, nb_iter_save)
 
     def prepare_plots(
@@ -1332,14 +1353,14 @@ class OptimalControlProgram:
             dummy_phase_times=OptimizationVectorHelper.extract_step_times(self, casadi.DM(np.ones(self.n_phases))),
         )
 
-    def check_conditioning(self):
+    def check_conditioning(self) -> None:
         """
         Visualisation of jacobian and hessian contraints and hessian objective for each phase at initial time
         """
         check_conditioning(self)
 
     def solve(
-        self, solver: GenericSolver = None, warm_start: Solution = None, expand_during_shake_tree=False
+        self, solver: GenericSolver | None = None, warm_start: Solution | None = None, expand_during_shake_tree: Bool = False
     ) -> Solution:
         """
         Call the solver to actually solve the ocp
@@ -1394,7 +1415,7 @@ class OptimalControlProgram:
 
         return Solution.from_dict(self, self.ocp_solver.get_optimized_value())
 
-    def set_warm_start(self, sol: Solution):
+    def set_warm_start(self, sol: Solution) -> None:
         """
         Modify x and u initial guess based on a solution.
 
@@ -1444,7 +1465,7 @@ class OptimalControlProgram:
         self,
         to_console: bool = True,
         to_graph: bool = True,
-    ):
+    ) -> None:
         if to_console:
             display_console = OcpToConsole(self)
             display_console.print()
@@ -1454,8 +1475,8 @@ class OptimalControlProgram:
             display_graph.print()
 
     def _define_time(
-        self, phase_time: int | float | list | tuple, objective_functions: ObjectiveList, constraints: ConstraintList
-    ):
+        self, phase_time: Int | Float | List | Tuple, objective_functions: ObjectiveList, constraints: ConstraintList
+    ) -> None:
         """
         Declare the phase_time vector in v. If objective_functions or constraints defined a time optimization,
         a sanity check is perform and the values of initial guess and bounds for these particular phases
@@ -1573,7 +1594,7 @@ class OptimalControlProgram:
             "dt_initial_guess", initial_guess=[v for v in dt_initial_guess.values()]
         )
 
-    def _define_numerical_timeseries(self, dynamics):
+    def _define_numerical_timeseries(self, dynamics: DynamicsList) -> None:
         """
         Declare the numerical_timeseries symbolic variables.
 
@@ -1606,7 +1627,7 @@ class OptimalControlProgram:
         # Add to the nlp
         NLP.add(self, "numerical_timeseries", numerical_timeseries, True)
 
-    def _modify_penalty(self, new_penalty: PenaltyOption | Parameter):
+    def _modify_penalty(self, new_penalty: PenaltyOption | Parameter) -> None:
         """
         The internal function to modify a penalty.
 
@@ -1623,7 +1644,7 @@ class OptimalControlProgram:
 
         self.program_changed = True
 
-    def _modify_parameter_penalty(self, new_penalty: PenaltyOption | Parameter):
+    def _modify_parameter_penalty(self, new_penalty: PenaltyOption | Parameter) -> None:
         """
         The internal function to modify a parameter penalty.
 
@@ -1639,7 +1660,7 @@ class OptimalControlProgram:
         new_penalty.add_or_replace_to_penalty_pool(self, self.nlp[new_penalty.phase])
         self.program_changed = True
 
-    def node_time(self, phase_idx: int, node_idx: int):
+    def node_time(self, phase_idx: Int, node_idx: Int) -> Float:
         """
         Gives the time of the node node_idx of from the phase phase_idx
 
@@ -1662,7 +1683,7 @@ class OptimalControlProgram:
 
         return previous_phase_time + self.nlp[phase_idx].dt * node_idx
 
-    def _set_nlp_is_stochastic(self):
+    def _set_nlp_is_stochastic(self) -> None:
         """
         Set the is_stochastic variable to False
         because it's not relevant for traditional OCP,_
